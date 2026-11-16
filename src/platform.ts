@@ -555,8 +555,9 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
   }
 
   async openDoor(door: Door): Promise<OpenResult> {
+    const started = Date.now();
     const result = await this.openOnce(door);
-    await this.extraBuzzes(door, `Door '${door.name}'`);
+    await this.extraBuzzes(door, `Door '${door.name}'`, started);
     return result;
   }
 
@@ -574,13 +575,16 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
 
   /**
    * Buzzes per unlock (openRepeat): after the first open, sends the door release again,
-   * openRepeatSeconds apart (start to start), for an entrance behind two doors. A later buzz
-   * that fails is logged and the rest still follow; the first open's result is what counts.
+   * openRepeatSeconds apart (start to start: the time an open takes to be confirmed counts),
+   * for an entrance behind two doors. A later buzz that fails is logged and the rest still
+   * follow; the first open's result is what counts. `firstAt`: when the first open was sent.
    */
-  async extraBuzzes(door: Door, label: string): Promise<void> {
+  async extraBuzzes(door: Door, label: string, firstAt = Date.now()): Promise<void> {
     const total = this.settings.openRepeat;
+    let last = firstAt;
     for (let n = 2; n <= total; n++) {
-      await new Promise((r) => setTimeout(r, this.settings.openRepeatMs));
+      await new Promise((r) => setTimeout(r, Math.max(0, last + this.settings.openRepeatMs - Date.now())));
+      last = Date.now();
       try {
         await this.openOnce(door);
         this.log.info(`${label}: buzz ${n} of ${total}`);
