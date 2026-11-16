@@ -83,7 +83,8 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
     this.log.info(
       `Settings: ${s.host || '(no host)'}:${s.port}, user row ${s.subaddress ?? 'from the intercom'}, ${s.enableNotifications ? `refresh ${s.leaseMode} every ${s.leaseRefreshMs / 60_000} min` : `rings off, reconnect every ${s.leaseRecycleMs / 60_000} min`}, ` +
         `unlock ${s.ringWindowMs ? `within ${s.ringWindowMs / 1000} s of a ring` : 'at any time'}, answerMode ${s.answerMode}, camera ${s.camera ? 'on' : 'off'}` +
-        `${s.doorbellTriggerUrl ? ', trigger URL set' : ''}${s.doctorMode !== 'off' ? `, doctor mode ${s.doctorMode}` : ''}`,
+        `${s.doorbellTriggerUrl ? ', trigger URL set' : ''}${s.doctorMode !== 'off' ? `, doctor mode ${s.doctorMode}` : ''}` +
+        `${s.openRepeat > 1 ? `, ${s.openRepeat} buzzes per unlock ${s.openRepeatMs / 1000} s apart` : ''}`,
     );
     if (this.settings.camera && this.settings.answerMode !== 'answer-on-view') {
       this.log.info("Doorbell camera: live video needs answerMode 'answer-on-view'; until then it shows the picture.");
@@ -538,6 +539,7 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
         if (result) {
           this.log.info(`${label}: door '${door.name}' opened`);
           [...this.lockAccessories.values()][0]?.showOpened();
+          void this.extraBuzzes(door, label);
           if (next && this.nextVisitorActive()) {
             this.nextVisitor?.used();
           }
@@ -553,6 +555,12 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
   }
 
   async openDoor(door: Door): Promise<OpenResult> {
+    const result = await this.openOnce(door);
+    await this.extraBuzzes(door, `Door '${door.name}'`);
+    return result;
+  }
+
+  private async openOnce(door: Door): Promise<OpenResult> {
     if (!this.client || !this.deviceConfig) {
       throw new Error('Not connected');
     }
@@ -561,6 +569,24 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
       return await openDoor(this.client, this.deviceConfig, door, { listener: this.vipListener, call: this.callHandler, log: this.log });
     } finally {
       this.opening--;
+    }
+  }
+
+  /**
+   * Buzzes per unlock (openRepeat): after the first open, sends the door release again,
+   * openRepeatSeconds apart (start to start), for an entrance behind two doors. A later buzz
+   * that fails is logged and the rest still follow; the first open's result is what counts.
+   */
+  async extraBuzzes(door: Door, label: string): Promise<void> {
+    const total = this.settings.openRepeat;
+    for (let n = 2; n <= total; n++) {
+      await new Promise((r) => setTimeout(r, this.settings.openRepeatMs));
+      try {
+        await this.openOnce(door);
+        this.log.info(`${label}: buzz ${n} of ${total}`);
+      } catch (e) {
+        this.log.warn(`${label}: buzz ${n} of ${total} failed: ${(e as Error).message}`);
+      }
     }
   }
 
