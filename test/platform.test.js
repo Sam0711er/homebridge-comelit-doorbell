@@ -514,6 +514,7 @@ test('buzzes per unlock: the release is sent openRepeat times, openRepeatSeconds
   let n = 0;
   p.openOnce = async () => {
     at.push(Date.now());
+    await new Promise((r) => setTimeout(r, 300)); // the intercom takes a moment to confirm
     if (++n === 2) throw new Error('busy');
     return { confirmed: true };
   };
@@ -521,7 +522,8 @@ test('buzzes per unlock: the release is sent openRepeat times, openRepeatSeconds
   const result = await p.openDoor(deviceConfig.doors[0]);
   assert.deepStrictEqual(result, { confirmed: true });
   assert.strictEqual(at.length, 3);
-  assert.ok(at[1] - at[0] >= 950 && at[2] - at[1] >= 950, 'about 1 s apart');
+  // start to start: the 300 ms the intercom takes to confirm is not added to the gap
+  for (const gap of [at[1] - at[0], at[2] - at[1]]) assert.ok(gap >= 950 && gap < 1250, `about 1 s apart (${gap} ms)`);
   assert.ok(Date.now() - t0 < 4000);
 });
 
