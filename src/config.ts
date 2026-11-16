@@ -23,6 +23,8 @@ export interface ComelitPlatformConfig extends PlatformConfig {
   doctorModeDelaySeconds?: number | string;
   nextVisitorSwitch?: boolean | string;
   nextVisitorMinutes?: number | string;
+  openRepeat?: number | string;
+  openRepeatSeconds?: number | string;
   camera?: boolean;
   talkBack?: boolean;
   videoQuality?: string;
@@ -68,6 +70,13 @@ export interface Settings {
   nextVisitorSwitch: boolean;
   /** The Next Visitor switch turns itself off after this long if nobody rings. */
   nextVisitorMs: number;
+  /**
+   * Buzzes per unlock: the door release is sent this many times, for an entrance behind two
+   * doors (the first buzz opens the street door, the next ones the inner door).
+   */
+  openRepeat: number;
+  /** Time from one buzz to the next (start to start), for openRepeat above 1. */
+  openRepeatMs: number;
   /** Experimental: a doorbell camera with the intercom's video. */
   camera: boolean;
   talkBack: boolean;
@@ -200,6 +209,8 @@ export function resolveSettings(c: ComelitPlatformConfig): Settings {
     doctorModeDelayMs: num('doctorModeDelaySeconds', 2, (n) => n >= 0 && n <= 30) * 1000,
     nextVisitorSwitch: bool('nextVisitorSwitch', false),
     nextVisitorMs: num('nextVisitorMinutes', 120, (n) => n >= 1 && n <= 1440) * 60_000,
+    openRepeat: num('openRepeat', 1, (n) => Number.isInteger(n) && n >= 1 && n <= 5),
+    openRepeatMs: num('openRepeatSeconds', 6, (n) => n >= 1 && n <= 30) * 1000,
     camera: bool('camera', false),
     talkBack: bool('talkBack', true),
     videoQuality: choice('videoQuality', ['sd', 'hd'] as const, 'sd'),
