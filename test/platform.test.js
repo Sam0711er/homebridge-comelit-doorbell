@@ -507,3 +507,36 @@ test('lock: an earlier open\'s relock doesn\'t show Locked while a second open i
   t.mock.timers.tick(3000);
   assert.strictEqual(lock.lockState, 1);
 });
+
+test('buzzes per unlock: the release is sent openRepeat times, openRepeatSeconds apart; a later failure does not stop the rest', async () => {
+  const { p } = platform({ openRepeat: 3, openRepeatSeconds: 1 });
+  const at = [];
+  let n = 0;
+  p.openOnce = async () => {
+    at.push(Date.now());
+    await new Promise((r) => setTimeout(r, 300)); // the intercom takes a moment to confirm
+    if (++n === 2) throw new Error('busy');
+    return { confirmed: true };
+  };
+  const t0 = Date.now();
+  const result = await p.openDoor(deviceConfig.doors[0]);
+  assert.deepStrictEqual(result, { confirmed: true });
+  assert.strictEqual(at.length, 3);
+  // start to start: the 300 ms the intercom takes to confirm is not added to the gap
+  for (const gap of [at[1] - at[0], at[2] - at[1]]) assert.ok(gap >= 950 && gap < 1250, `about 1 s apart (${gap} ms)`);
+  assert.ok(Date.now() - t0 < 4000);
+});
+
+test('buzzes per unlock: a refused first open sends no more; the default is one buzz', async () => {
+  const { p } = platform({ openRepeat: 3, openRepeatSeconds: 1 });
+  let n = 0;
+  p.openOnce = async () => { n++; throw new Error('intercom refused (cause 8, busy)'); };
+  await assert.rejects(p.openDoor(deviceConfig.doors[0]), /refused/);
+  assert.strictEqual(n, 1);
+  const one = platform().p;
+  let m = 0;
+  one.openOnce = async () => { m++; return { confirmed: true }; };
+  await one.openDoor(deviceConfig.doors[0]);
+  assert.strictEqual(m, 1);
+  assert.strictEqual(one.settings.openRepeatMs, 6000);
+});
