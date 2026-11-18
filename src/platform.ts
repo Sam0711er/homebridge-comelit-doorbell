@@ -535,7 +535,8 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
           return;
         }
         const call = this.callHandler;
-        if (!call?.activeCall()) {
+        if (!call?.ringingCall()) {
+          // No ring to open in (it ended, or only our own live view call is up): not opening.
           this.log.info(`${label}: the call is over (answered elsewhere or hung up); not opening`);
           return;
         }

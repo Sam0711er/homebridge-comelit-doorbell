@@ -249,6 +249,15 @@ export class CallHandler {
     );
   }
 
+  /**
+   * The most recent ring still in progress, if any: like activeCall(), but never one of our own
+   * calls to the panel (live view without a ring). Doors are only ever opened inside a ring.
+   */
+  ringingCall(): Call | undefined {
+    this.activeCall(); // drops ended and stale calls
+    return [...this.calls.values()].filter((c) => !c.outbound).pop();
+  }
+
   /** The most recent call still in progress, if any. */
   activeCall(): Call | undefined {
     const now = Date.now();
@@ -378,7 +387,9 @@ export class CallHandler {
    * Opens `door` inside the ringing call, answering it first if needed, and hangs up afterwards
    * if nobody is watching. In `answer-on-open` and `answer-on-view` mode (so a ring can be let
    * in from the lock without opening the live view); `force` (doctor mode) whatever the mode.
-   * Returns null when there is no call, so the caller opens the normal way.
+   * Returns null when there is no call, so the caller opens the normal way. Only a ring counts:
+   * our own call to the panel (live view without a ring) is never used to open, so doctor mode,
+   * Next Visitor and the lock never open the door inside it (the lock then opens the normal way).
    */
   /**
    * `stillWanted` is asked once more after answering, just before the open (doctor mode and
@@ -386,7 +397,7 @@ export class CallHandler {
    * answered, is hung up and null returned.
    */
   async openInCall(door: Door, force = false, stillWanted?: () => boolean): Promise<OpenResult | null> {
-    const call = this.activeCall();
+    const call = this.ringingCall();
     if (!call || !(force || this.mode === 'answer-on-open' || this.mode === 'answer-on-view')) {
       return null;
     }

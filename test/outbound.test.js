@@ -175,6 +175,37 @@ test('frames of our own call are not taken as a ring or a door event by the list
   await placing;
 });
 
+const door = { name: 'Entrance', index: 0, outputIndex: 1, aptAddress: 'SB100001' };
+const opens = (sent) => parsed(sent).filter((f) => f.body.length >= 2 && f.opcode === 0x2d);
+
+test('our own live view call is never used to open the door (doctor mode, Next Visitor, the lock)', async () => {
+  const { call, sent } = setup();
+  const session = await call.startMedia(false);
+  assert.ok(call.activeCall()?.outbound, 'our call is up');
+  assert.strictEqual(call.ringingCall(), undefined, 'and it is not a ring');
+  assert.strictEqual(await call.openInCall(door, true), null, 'doctor mode / Next Visitor: not opened in our call');
+  assert.strictEqual(await call.openInCall(door, false), null, 'the lock: opens the normal way instead');
+  assert.deepStrictEqual(opens(sent), [], 'no open sent on our call');
+  await session.end('test');
+});
+
+test('a ring arriving during our own live view: the forced open goes into the ring, not our call', async () => {
+  const { call, sent } = setup();
+  const session = await call.startMedia(false);
+  const own = call.activeCall();
+  await call.onFrame(parseFrame(frames.invite), ['SB100001']);
+  await call.onFrame(parseFrame(frames.capabilities), ['SB100001']);
+  const ringCall = call.ringingCall();
+  assert.ok(ringCall && !ringCall.outbound && ringCall !== own);
+  const result = await call.openInCall(door, true);
+  assert.deepStrictEqual(result, { confirmed: true });
+  const sentOpens = opens(sent);
+  assert.strictEqual(sentOpens.length, 1);
+  assert.strictEqual(sentOpens[0].conn1, ringCall.conn1, 'on the ring\'s connection');
+  assert.notStrictEqual((sentOpens[0].conn1 << 8) | (sentOpens[0].conn0 & 0x7f), (own.conn1 << 8) | (own.conn0 & 0x7f), 'not on ours');
+  await session.end('test');
+});
+
 test('settings: off by default; on, calls are followed and it needs the camera and rings', () => {
   assert.strictEqual(resolveSettings({ platform: 'x' }).liveViewWithoutRing, false);
   const on = resolveSettings({ platform: 'x', camera: true, liveViewWithoutRing: true });
