@@ -200,3 +200,8 @@ test('invalid choices are reported; non-text paths are reported instead of crash
   assert.deepStrictEqual([v.answerMode, v.doctorMode, v.leaseMode, v.videoQuality, v.ffmpegPath], ['answer-on-view', 'switch', 'reconnect', 'hd', '/usr/local/bin/ffmpeg']);
   assert.deepStrictEqual(v.invalid, []);
 });
+
+test('time from one buzz to the next: 1 to 15 s; more falls back to 6 (review)', () => {
+  assert.strictEqual(resolveSettings({ openRepeat: 5, openRepeatSeconds: 15 }).openRepeatMs, 15000);
+  assert.strictEqual(resolveSettings({ openRepeat: 5, openRepeatSeconds: 30 }).openRepeatMs, 6000);
+});

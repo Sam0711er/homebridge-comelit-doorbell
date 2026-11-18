@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Buzzes per unlock** (`openRepeat`, default 1) and **Time from one buzz to the next** (`openRepeatSeconds`, default 6). For an entrance behind two doors, each unlock sends the door release several times, so the second door opens too while you walk to it. Applies to every unlock from HomeKit and to doctor mode and Next Visitor. The startup `Settings:` line says `…, 3 buzzes per unlock 6 s apart`, and each extra buzz is logged (`Door 'Entrance lock': buzz 2 of 3`).
+- **Buzzes per unlock** (`openRepeat`, default 1) and **Time from one buzz to the next** (`openRepeatSeconds`, default 6). For an entrance behind two doors, each unlock sends the door release several times, so the second door opens too while you walk to it. Applies to every unlock from HomeKit and to doctor mode and Next Visitor. The startup `Settings:` line says `…, 3 buzzes per unlock 6 s apart`, and each extra buzz is logged (`Door 'Entrance lock': buzz 2 of 3`). Buzzes are timed start to start for HomeKit unlocks and for doctor mode / Next Visitor alike, and `openRepeatSeconds` is 1 to 15, so even 5 buzzes stay well inside the ring window (review).
 
 ## 2.3.3 (2026-11-13)
 

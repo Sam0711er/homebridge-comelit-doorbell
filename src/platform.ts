@@ -530,6 +530,7 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
           this.log.info(`${label}: the call is over (answered elsewhere or hung up); not opening`);
           return;
         }
+        const started = Date.now(); // buzzes are timed start to start, as for HomeKit unlocks
         const result = await call.openInCall(door, true, armed);
         if (!result && !armed()) {
           // Turned off while the call was being answered: not opened.
@@ -539,7 +540,7 @@ export class ComelitIntercomPlatform implements DynamicPlatformPlugin {
         if (result) {
           this.log.info(`${label}: door '${door.name}' opened`);
           [...this.lockAccessories.values()][0]?.showOpened();
-          void this.extraBuzzes(door, label);
+          void this.extraBuzzes(door, label, started);
           if (next && this.nextVisitorActive()) {
             this.nextVisitor?.used();
           }

@@ -527,6 +527,23 @@ test('buzzes per unlock: the release is sent openRepeat times, openRepeatSeconds
   assert.ok(Date.now() - t0 < 4000);
 });
 
+test('buzzes per unlock with doctor mode: timed start to start from the open in the call (review)', async () => {
+  const { p } = doctor({ doctorMode: 'always', openRepeat: 2, openRepeatSeconds: 1 });
+  let openedAt;
+  p.callHandler.openInCall = async () => {
+    openedAt = Date.now();
+    await new Promise((r) => setTimeout(r, 300)); // answering and the open take a moment
+    return { confirmed: true };
+  };
+  const buzzes = [];
+  p.openOnce = async () => { buzzes.push(Date.now()); return { confirmed: true }; };
+  p.onEvent({ eventType: 'doorbell_ring', aptAddress: 'SB000002' });
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.strictEqual(buzzes.length, 1, 'one extra buzz');
+  const gap = buzzes[0] - openedAt;
+  assert.ok(gap >= 950 && gap < 1250, `about 1 s after the open started, not after it was confirmed (${gap} ms)`);
+});
+
 test('buzzes per unlock: a refused first open sends no more; the default is one buzz', async () => {
   const { p } = platform({ openRepeat: 3, openRepeatSeconds: 1 });
   let n = 0;
